@@ -8,6 +8,7 @@ public enum NetworkThreat: Identifiable, Codable, Hashable {
     case dnsPoisoning(expectedDoH: String, localDNS: String)
     case openUnencryptedNetwork
     case suspiciousGateway(ip: String)
+    case possibleEvilTwin(expected: String, actual: String)
 
     public var id: String {
         switch self {
@@ -17,23 +18,25 @@ public enum NetworkThreat: Identifiable, Codable, Hashable {
         case .dnsPoisoning: return "dns_poisoning"
         case .openUnencryptedNetwork: return "open_unencrypted"
         case .suspiciousGateway(let ip): return "gateway_\(ip)"
+        case .possibleEvilTwin(let expected, let actual): return "eviltwin_\(expected)_\(actual)"
         }
     }
 
     public var title: String {
         switch self {
-        case .rogueCaptivePortal: return "Suspicious Captive Portal"
+        case .rogueCaptivePortal: return "Suspicious Captive Portal Domain"
         case .unencryptedCaptivePortal: return "Plaintext HTTP Captive Portal"
         case .tlsInterception: return "Active TLS / SSL Interception"
-        case .dnsPoisoning: return "DNS Spoofing / Poisoning"
+        case .dnsPoisoning: return "DNS Spoofing / Inconsistent Mapping"
         case .openUnencryptedNetwork: return "Unencrypted Wi-Fi Network"
-        case .suspiciousGateway: return "Suspicious Gateway Address"
+        case .suspiciousGateway: return "Gateway Subnet Altered"
+        case .possibleEvilTwin: return "Potential Rogue / Evil Twin Access Point"
         }
     }
 
     public var severity: WiFiSafetyAttributes.ThreatLevel {
         switch self {
-        case .tlsInterception, .dnsPoisoning: return .critical
+        case .tlsInterception, .dnsPoisoning, .possibleEvilTwin: return .critical
         case .rogueCaptivePortal: return .high
         case .unencryptedCaptivePortal: return .medium
         case .openUnencryptedNetwork: return .medium
@@ -44,7 +47,7 @@ public enum NetworkThreat: Identifiable, Codable, Hashable {
     public var description: String {
         switch self {
         case .rogueCaptivePortal(let url, let reason):
-            return "The login page redirected to an unrecognized or untrusted domain (\(url)). Reason: \(reason)"
+            return "The login page redirected to an unexpected or suspicious domain (\(url)). Reason: \(reason)"
         case .unencryptedCaptivePortal(let url):
             return "The captive portal login page uses unencrypted HTTP (\(url)). Any entered credentials or room numbers can be intercepted."
         case .tlsInterception(let details):
@@ -55,16 +58,21 @@ public enum NetworkThreat: Identifiable, Codable, Hashable {
             return "This network does not use WPA2 or WPA3 encryption. Anyone nearby can observe plaintext broadcast frames."
         case .suspiciousGateway(let ip):
             return "The default gateway (\(ip)) is utilizing a non-standard local routing subnet."
+        case .possibleEvilTwin(let expected, let actual):
+            return "The BSSID or access point hardware identifier for this SSID differs from previous connections (Historical: \(expected), Current: \(actual))."
         }
     }
 }
 
-/// The aggregated result of a Wi-Fi security audit
+/// The aggregated result of a Wi-Fi security audit with confidence metrics
 public struct SecurityAuditResult: Identifiable, Codable {
     public let id: UUID
     public let ssid: String
     public let timestamp: Date
     public let isSecure: Bool
+    public let riskLevel: RiskLevel
+    public let confidence: AssessmentConfidence
+    public let confidenceExplanation: String
     public let threats: [NetworkThreat]
     public let captivePortalURL: URL?
     public let tlsHandshakeLatencyMs: Double
@@ -75,6 +83,9 @@ public struct SecurityAuditResult: Identifiable, Codable {
         ssid: String,
         timestamp: Date = Date(),
         isSecure: Bool,
+        riskLevel: RiskLevel = .nominal,
+        confidence: AssessmentConfidence = .medium,
+        confidenceExplanation: String = "",
         threats: [NetworkThreat] = [],
         captivePortalURL: URL? = nil,
         tlsHandshakeLatencyMs: Double = 0.0,
@@ -84,6 +95,9 @@ public struct SecurityAuditResult: Identifiable, Codable {
         self.ssid = ssid
         self.timestamp = timestamp
         self.isSecure = isSecure
+        self.riskLevel = riskLevel
+        self.confidence = confidence
+        self.confidenceExplanation = confidenceExplanation
         self.threats = threats
         self.captivePortalURL = captivePortalURL
         self.tlsHandshakeLatencyMs = tlsHandshakeLatencyMs
@@ -91,14 +105,15 @@ public struct SecurityAuditResult: Identifiable, Codable {
     }
 
     public var summaryHeadline: String {
-        if isSecure {
-            return "Wi-Fi Verified Secure"
-        } else if let critical = threats.first(where: { $0.severity == .critical }) {
-            return critical.title
-        } else if captivePortalURL != nil {
-            return "Captive Portal Detected"
-        } else {
-            return "Security Warnings Detected"
+        switch riskLevel {
+        case .nominal:
+            return "No Obvious Anomalies Observed"
+        case .moderate:
+            return captivePortalURL != nil ? "Captive Portal Detected" : "Incomplete Verification"
+        case .elevated:
+            return "Suspicious Network Signals"
+        case .critical:
+            return threats.first(where: { $0.severity == .critical })?.title ?? "Critical Security Warning"
         }
     }
 }

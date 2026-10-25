@@ -9,6 +9,7 @@ public final class NetworkObserver: NSObject, ObservableObject, CLLocationManage
     public static let shared = NetworkObserver()
 
     @Published public private(set) var currentSSID: String = "Not Connected"
+    @Published public private(set) var currentBSSID: String? = nil
     @Published public private(set) var isAuditing: Bool = false
     @Published public private(set) var currentResult: SecurityAuditResult?
     @Published public private(set) var auditHistory: [SecurityAuditResult] = []
@@ -60,25 +61,27 @@ public final class NetworkObserver: NSObject, ObservableObject, CLLocationManage
 
     // MARK: - Core Event Handlers
     private func handleWiFiConnected(force: Bool = false) async {
-        let ssid = await fetchCurrentSSID() ?? "Public Wi-Fi"
+        let (ssid, bssid) = await fetchCurrentWiFiInfo()
+        let activeSSID = ssid ?? "Public Wi-Fi"
 
-        if !force && ssid == lastAuditedSSID && currentResult != nil {
+        if !force && activeSSID == lastAuditedSSID && currentResult != nil {
             return
         }
-        self.lastAuditedSSID = ssid
-        self.currentSSID = ssid
+        self.lastAuditedSSID = activeSSID
+        self.currentSSID = activeSSID
+        self.currentBSSID = bssid
         self.isAuditing = true
 
         // 1. Activate Live Activity / Dynamic Island into "Auditing..." state
         await LiveActivityManager.shared.startOrUpdateActivity(
-            ssid: ssid,
-            statusText: "Auditing network safety...",
+            ssid: activeSSID,
+            statusText: "Analyzing network signals...",
             isSecure: false,
             threatLevel: .low
         )
 
-        // 2. Execute Audit
-        let result = await WiFiAuditor.shared.audit(ssid: ssid)
+        // 2. Execute Audit with BSSID and Gateway resolution
+        let result = await WiFiAuditor.shared.audit(ssid: activeSSID, bssid: bssid, gatewayIP: nil)
 
         self.currentResult = result
         self.isAuditing = false
@@ -91,33 +94,34 @@ public final class NetworkObserver: NSObject, ObservableObject, CLLocationManage
         let threatLevel = result.threats.map { $0.severity }.max(by: { $0.hashValue < $1.hashValue }) ?? .low
 
         await LiveActivityManager.shared.startOrUpdateActivity(
-            ssid: ssid,
+            ssid: activeSSID,
             statusText: result.summaryHeadline,
             isSecure: result.isSecure,
             threatLevel: threatLevel
         )
 
-        if result.isSecure {
+        if result.riskLevel == .nominal {
             NotificationManager.shared.sendAlert(
-                title: "Wi-Fi Verified Secure",
-                body: "Connected to \(ssid). Encryption, TLS canary, and DNS integrity confirmed."
+                title: "Network Assessed (Nominal)",
+                body: "\(activeSSID): Probes completed with \(result.confidence.rawValue) confidence."
             )
         } else if let captiveURL = result.captivePortalURL {
             NotificationManager.shared.sendAlert(
                 title: "Captive Portal Detected",
-                body: "Login required for \(ssid) via \(captiveURL.host ?? "browser")."
+                body: "Login required for \(activeSSID) via \(captiveURL.host ?? "browser")."
             )
         } else {
-            let topThreat = result.threats.first?.title ?? "Security issues detected"
+            let topThreat = result.threats.first?.title ?? "Security alert"
             NotificationManager.shared.sendAlert(
-                title: "⚠️ Wi-Fi Security Warning",
-                body: "\(topThreat) on \(ssid)."
+                title: "⚠️ Network Alert",
+                body: "\(topThreat) detected on \(activeSSID)."
             )
         }
     }
 
     private func handleWiFiDisconnected() {
         self.currentSSID = "Disconnected"
+        self.currentBSSID = nil
         self.lastAuditedSSID = nil
         self.isAuditing = false
         self.currentResult = nil
@@ -127,13 +131,13 @@ public final class NetworkObserver: NSObject, ObservableObject, CLLocationManage
         }
     }
 
-    // MARK: - SSID Resolution
-    private func fetchCurrentSSID() async -> String? {
+    // MARK: - SSID & BSSID Resolution
+    private func fetchCurrentWiFiInfo() async -> (ssid: String?, bssid: String?) {
         if #available(iOS 14.0, *) {
             let network = await NEHotspotNetwork.fetchCurrent()
-            return network?.ssid
+            return (network?.ssid, network?.bssid)
         }
-        return nil
+        return (nil, nil)
     }
 
     // MARK: - CLLocationManagerDelegate

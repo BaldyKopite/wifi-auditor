@@ -54,7 +54,6 @@ jobs:
             -derivedDataPath ./build
 
       - name: Run Unit Tests
-        continue-on-error: true
         run: |
           xcodebuild test \
             -project WiFiAuditor.xcodeproj \

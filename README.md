@@ -6,80 +6,78 @@
 [![Cloud Mac CI](https://github.com/BaldyKopite/wifi-auditor/actions/workflows/ios-cloud-build.yml/badge.svg)](https://github.com/BaldyKopite/wifi-auditor/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-> A lightweight, privacy-first mobile cybersecurity utility for iOS that audits public Wi-Fi networks and captive portals in real-time, giving users instant Dynamic Island & Live Activity verification without expensive monthly VPN subscriptions.
+> A lightweight, privacy-first mobile utility for iOS that performs automated on-device heuristic risk checks on public Wi-Fi networks and captive portals, surfacing confidence-scored alerts via the Dynamic Island and Live Activities.
+
+---
+
+> [!NOTE]
+> **Heuristic Assessment & Security Scope**
+> Wi-Fi Auditor is designed as a **lightweight, on-device risk assessment utility**. It performs best-effort heuristic signal checks (TLS canary verification, DoH cross-referencing, captive portal inspection, and local access point fingerprinting). It is **not** an enterprise Security Operations Center (SOC) or a substitute for an encrypted end-to-end VPN tunnel.
 
 ---
 
 ## 🌟 Why Wi-Fi Auditor?
 
-Connecting to public Wi-Fi at airports, hotels, and cafes often exposes everyday people to **rogue access points (Evil Twin attacks)**, **fake captive portals**, and **DNS spoofing**. 
+Connecting to public Wi-Fi at airports, hotels, and cafes often exposes everyday people to **rogue access points (Evil Twin attacks)**, **fake captive portals**, and **DNS spoofing**.
 
 Apps like **Glacier App** charge **$14.99 to $34.98 every month** because they route all user traffic through expensive remote VPN servers. 
 
 **Wi-Fi Auditor is designed to be the lean, accessible alternative:**
-- **Zero-Cloud Data Routing:** Direct on-device cryptographic audits test connection integrity.
+- **Zero-Cloud Data Routing:** Direct on-device cryptographic probes test connection integrity.
+- **Confidence-Based Scoring:** Replaces vague claims with transparent confidence levels (`HIGH`, `MEDIUM`, `LOW`) and explicit risk grading.
+- **Local Access Point Fingerprinting:** Remembers BSSIDs and router gateways to detect "same SSID, different router" Evil Twin attacks.
 - **Instant Status in Dynamic Island:** See `[ 🛡️ Safe ]` or `[ ⚠️ Alert ]` the second you join a network.
 - **No Monthly VPN Subscriptions:** Near $0 server infrastructure means users get cybersecurity for a fraction of the price.
 
 ---
 
-## 🚀 Key Features
+## 🚀 Threat Evaluation Engine
 
 ```
 [Phone connects to Wi-Fi]
           │
           ▼
 ┌────────────────────────────────────────────────────────┐
-│           Security Audit Engine (<500ms)               │
+│           Heuristic Evaluation Engine (<500ms)         │
 ├────────────────────────────────────────────────────────┤
 │ 1. TLS 1.3 Canary Probe (Strict Handshake Check)      │
 │ 2. Captive Portal Safety & SSL Validation              │
 │ 3. DNS Poisoning Detection (Local DNS vs Encrypted DoH)│
-│ 4. Disposable Domain & Phishing Pattern Detection      │
+│ 4. Access Point Fingerprint (BSSID / Gateway Shift)   │
 └────────────────────────────────────────────────────────┘
           │
     ┌─────┴─────┐
     ▼           ▼
-🟢 "Verified    🔴 "Threat Detected"
-   Secure"         (Instant Push Alert & Dynamic Island)
+🟢 "No Obvious    🔴 "Suspicious Signals Detected"
+   Anomalies"        (Confidence-Scored Dynamic Island Alert)
 ```
 
-- **🟢 Real-Time Wi-Fi Legitimacy:** Automatic background audit triggers when switching between cellular and Wi-Fi networks.
+- **🟢 Confidence-Scored Risk Detection:** Categorizes network conditions into `NOMINAL`, `MODERATE`, `ELEVATED`, and `CRITICAL` with transparent confidence metrics.
 - **🏝️ Dynamic Island & Lock Screen Live Activity:** Monitor network status right from the Dynamic Island while completing hotel/airport login forms.
 - **🔒 TLS 1.3 Canary Probe:** Verifies certificate chains to catch active Man-in-the-Middle (MITM) proxies and Wi-Fi Pineapple attacks.
 - **🌐 DNS Tampering Detection:** Cross-references the router's DNS resolver against encrypted **DNS-over-HTTPS (RFC 8484)** via Cloudflare (1.1.1.1) or Quad9 (9.9.9.9).
 - **📝 Captive Portal Inspector:** Flags unencrypted plaintext HTTP login pages, non-standard router gateways, and suspicious disposable domains (`.tk`, `.xyz`).
+- **🏠 Trusted Network Store:** Cache known-good BSSIDs and default gateway subnets. Detects when an attacker attempts to spoof your home or office SSID with a rogue access point.
 
 ---
 
-## ⚖️ Product Comparison: Glacier vs. Wi-Fi Auditor
+## 🏗️ Architecture & Dependency Injection
 
-| Feature | Glacier App | Wi-Fi Auditor |
-| :--- | :--- | :--- |
-| **Price** | **$14.99 – $34.98 / month** | **$1.99 / mo** (or $19.99 one-time) |
-| **Wi-Fi / Captive Portal Verification** | Hidden inside heavy VPN suite | **Instant Dynamic Island & Push Alert** |
-| **Server Bandwidth Costs** | High (All user streaming/browsing passes through VPN) | **$0.00** (Direct client-to-canary probes) |
-| **Battery Consumption** | High (Continuous VPN tunneling & encryption) | **Negligible (<0.1% daily)** (Event-driven background audits) |
-| **User Privacy** | Centralized VPN operator handles your traffic | **100% On-Device & Decentralized** |
-
----
-
-## 🏗️ Technical Architecture
-
-The application is built in native **Swift** with **SwiftUI** and **ActivityKit**:
+The application is built with clean architectural boundaries for 100% deterministic testability:
 
 ```
 WiFiAuditor/
-├── WiFiAuditor/                 # Main App Target
-│   ├── App/                     # SwiftUI App lifecycle & AppDelegate
-│   ├── Models/                  # Threat models, AuditResult, WiFiSafetyAttributes
-│   ├── Services/                # WiFiAuditor, NetworkObserver, LiveActivityManager
-│   ├── Views/                   # DashboardView, AuditResultCard, CaptivePortalDetailView
-│   └── Resources/               # Info.plist & WiFiAuditorApp.entitlements
-├── WiFiSafetyWidget/            # Widget Extension (ActivityKit Dynamic Island)
-├── Tests/WiFiAuditorTests/      # Unit testing suite
-├── project.yml                  # XcodeGen declarative project configuration
-└── .github/workflows/           # Automated Cloud Mac build & test pipeline
+├── Services/
+│   ├── NetworkProbing.swift       # Protocols (CaptivePortalProbing, TLSHandshakeProbing, DNSIntegrityProbing)
+│   ├── WiFiAuditor.swift          # Injectable orchestrator
+│   ├── ThreatScoringEngine.swift  # Deterministic multi-signal risk evaluator
+│   ├── TrustedNetworkStore.swift  # Persistent BSSID & gateway history
+│   ├── NetworkObserver.swift      # NWPathMonitor & NEHotspotNetwork listener
+│   ├── LiveActivityManager.swift  # ActivityKit Dynamic Island controller
+│   └── NotificationManager.swift  # Local alerts
+├── Tests/WiFiAuditorTests/        # Mock probe client testing TLS interception, DNS poisoning & captive states
+├── project.yml                    # XcodeGen declarative project configuration
+└── .github/workflows/             # Automated Cloud Mac build & test pipeline
 ```
 
 ---
