@@ -21,15 +21,19 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode_15.3.app || sudo xcode-select -s /Applications/Xcode.app
           xcodebuild -version
 
-      - name: Install compatible XcodeGen
+      - name: Install XcodeGen
         run: |
-          brew install xcodegen@2.39.0 || brew install xcodegen
+          brew install xcodegen
           xcodegen --version
 
       - name: Generate Xcode Project (.xcodeproj)
         run: |
+          set -eux
           rm -rf WiFiAuditor.xcodeproj
           xcodegen generate
+          grep -n "objectVersion" WiFiAuditor.xcodeproj/project.pbxproj | head
+          ruby -e 'path = "WiFiAuditor.xcodeproj/project.pbxproj"; text = File.read(path); text = text.gsub("objectVersion = 77", "objectVersion = 60"); text = text.gsub(/objectVersion = (6[1-9]|[7-9]\d)/, "objectVersion = 60"); File.write(path, text)'
+          grep -n "objectVersion" WiFiAuditor.xcodeproj/project.pbxproj | head
 
       - name: Resolve Simulator Device
         id: sim
