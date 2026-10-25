@@ -1,6 +1,6 @@
 # 🛡️ Wi-Fi Auditor (iOS)
 
-[![iOS 16.1+](https://img.shields.io/badge/iOS-16.1%2B-blue.svg?logo=apple&logoColor=white)](https://developer.apple.com/ios/)
+[![iOS 16.2+](https://img.shields.io/badge/iOS-16.2%2B-blue.svg?logo=apple&logoColor=white)](https://developer.apple.com/ios/)
 [![Swift 5.9](https://img.shields.io/badge/Swift-5.9-orange.svg?logo=swift&logoColor=white)](https://swift.org)
 [![Dynamic Island](https://img.shields.io/badge/Dynamic_Island-Supported-purple.svg)](https://developer.apple.com/design/human-interface-guidelines/live-activities)
 [![Cloud Mac CI](https://github.com/BaldyKopite/wifi-auditor/actions/workflows/ios-cloud-build.yml/badge.svg)](https://github.com/BaldyKopite/wifi-auditor/actions)

@@ -63,7 +63,7 @@ WiFiAuditor/
    - Add **Access Wi-Fi Information**.
    - Add **Push Notifications** (for local alert triggers).
    - Add **Background Modes** (`Background fetch`, `Background processing`).
-5. Build & run on a physical iPhone or Simulator with iOS 16.1+.
+5. Build & run on a physical iPhone or Simulator with iOS 16.2+.
 
 ---
 
