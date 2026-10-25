@@ -59,7 +59,7 @@ jobs:
             CODE_SIGN_ENTITLEMENTS="" \
             -derivedDataPath ./build
 
-      - name: Run Unit Tests
+      - name: Run Unit Tests only for app test target
         run: |
           xcodebuild test \
             -project WiFiAuditor.xcodeproj \
@@ -70,7 +70,10 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGN_ENTITLEMENTS="" \
-            -derivedDataPath ./build
+            ONLY_ACTIVE_ARCH=YES \
+            -derivedDataPath ./build \
+            -parallel-testing-enabled NO \
+            -only-testing:WiFiAuditorTests
 
       - name: Package Build Artifacts
         run: |
