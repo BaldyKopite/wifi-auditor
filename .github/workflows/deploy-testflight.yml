@@ -39,6 +39,31 @@ jobs:
           xcodegen generate
           ruby -e 'path = "WiFiAuditor.xcodeproj/project.pbxproj"; text = File.read(path); text = text.gsub("objectVersion = 77", "objectVersion = 60"); text = text.gsub(/objectVersion = (6[1-9]|[7-9]\d)/, "objectVersion = 60"); File.write(path, text)'
 
+      - name: Validate Apple Developer Secrets
+        env:
+          CERT_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APP_PROFILE: ${{ secrets.APPLE_APP_PROFILE_BASE64 }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY_BASE64 }}
+        run: |
+          MISSING=0
+          if [ -z "$CERT_BASE64" ]; then echo "❌ Missing secret: APPLE_CERTIFICATE_BASE64"; MISSING=1; fi
+          if [ -z "$CERT_PASSWORD" ]; then echo "❌ Missing secret: APPLE_CERTIFICATE_PASSWORD"; MISSING=1; fi
+          if [ -z "$APP_PROFILE" ]; then echo "❌ Missing secret: APPLE_APP_PROFILE_BASE64"; MISSING=1; fi
+          if [ -z "$KEY_ID" ]; then echo "❌ Missing secret: APP_STORE_CONNECT_KEY_ID"; MISSING=1; fi
+          if [ -z "$ISSUER_ID" ]; then echo "❌ Missing secret: APP_STORE_CONNECT_ISSUER_ID"; MISSING=1; fi
+          if [ -z "$KEY_CONTENT" ]; then echo "❌ Missing secret: APP_STORE_CONNECT_PRIVATE_KEY_BASE64"; MISSING=1; fi
+          
+          if [ $MISSING -eq 1 ]; then
+            echo ""
+            echo "🚨 Apple Signing Secrets are not configured in GitHub Secrets yet."
+            echo "👉 See TESTFLIGHT_SETUP_GUIDE.md in the repository for instructions on adding them."
+            exit 1
+          fi
+          echo "✅ All required Apple Developer secrets are present."
+
       - name: Set Up Keychain and Certificates
         env:
           BUILD_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
