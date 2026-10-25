@@ -1,98 +1,142 @@
-# Apple TestFlight Deployment Guide (Zero-Mac CI/CD)
+# Complete Apple TestFlight Deployment Guide (Zero-Mac CI/CD)
 
-This guide walks you through setting up automated over-the-air deployment to **Apple TestFlight** directly from GitHub Actions.
-
----
-
-## 1. Prerequisites
-- An active [Apple Developer Account](https://developer.apple.com/) ($99/year).
-- Access to [App Store Connect](https://appstoreconnect.apple.com/).
+This comprehensive guide details the exact setup path on Apple Developer, App Store Connect, and Windows PowerShell to deliver automated TestFlight builds directly to your physical iPhone via GitHub Actions.
 
 ---
 
-## 2. Generate App Store Connect API Key
-This allows GitHub Actions to securely upload `.ipa` builds to Apple servers without needing 2-Factor Authentication prompts.
+## 1. Set Up App Bundle IDs in Apple Developer
 
-1. Go to **App Store Connect > Users and Access > Integrations > API Keys**.
-2. Click **+** (Generate API Key).
-   - Name: `GitHub CI Deploy`
-   - Access: `App Manager` or `Developer`
-3. Download the private key file (`AuthKey_XXXXXXXXXX.p8`). *(Note: You can only download this file once!)*
-4. Note your:
-   - **Key ID** (e.g., `2X9R4HXF34`)
-   - **Issuer ID** (e.g., `69a6de70-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+In [Apple Developer Identifiers](https://developer.apple.com/account/resources/identifiers/list):
+1. Click **+** to register two App IDs:
+   - **Main App:** `com.wifiauditor.app`
+   - **Widget Extension:** `com.wifiauditor.app.widget`
+2. For `com.wifiauditor.app`, enable:
+   - **Access Wi-Fi Information**
+   - **Push Notifications**
 
 ---
 
-## 3. Obtain Distribution Certificate & Profiles
+## 2. Create Provisioning Profiles
 
-In **developer.apple.com > Certificates, Identifiers & Profiles**:
-
-1. **Apple Distribution Certificate:**
-   - Create an **Apple Distribution** certificate and export it as a `.p12` file with a secure password.
-2. **Identifiers:**
-   - App: `com.wifiauditor.app` (Enable `Access Wi-Fi Information` and `Push Notifications`).
-   - Widget: `com.wifiauditor.app.widget`.
-3. **Provisioning Profiles:**
-   - Create an **App Store** distribution profile for `com.wifiauditor.app`.
-   - Create an **App Store** distribution profile for `com.wifiauditor.app.widget`.
+In [Apple Developer Profiles](https://developer.apple.com/account/resources/profiles/list):
+1. Create an **App Store** distribution profile for `com.wifiauditor.app`:
+   - Name: `WiFiAuditor_AppStore`
+   - Download as: `WiFiAuditor_AppStore.mobileprovision`
+2. Create an **App Store** distribution profile for `com.wifiauditor.app.widget`:
+   - Name: `WiFiAuditorWidget_AppStore`
+   - Download as: `WiFiAuditorWidget_AppStore.mobileprovision`
 
 ---
 
-## 4. Convert Files to Base64 (on Windows PowerShell)
+## 3. Create the App Store Connect API Key
 
-Run these quick commands in PowerShell on your files to encode them into text for GitHub Secrets:
+In [App Store Connect API Keys](https://appstoreconnect.apple.com/access/api):
+1. Click **Keys** > **+** (Generate API Key).
+   - Name: `GitHub Actions WiFi Auditor`
+   - Access: `Developer` or `App Manager`
+2. Save and download the `.p8` private key file (`AuthKey_XXXXXXXXXX.p8`). *(Note: Apple only permits downloading this file once!)*
+3. Note your:
+   - **Key ID** (10 characters, e.g., `2X9R4HXF34`)
+   - **Issuer ID** (UUID at the top of the page, e.g., `69a6de70-xxxx-xxxx-xxxx-xxxxxxxxxxxx`)
+
+---
+
+## 4. Export Distribution Certificate (.p12)
+
+From Keychain Access (or Apple Developer portal):
+1. Export your **Apple Distribution** certificate as a `.p12` file.
+   *(Important: Ensure it is a Distribution certificate, not Development).*
+2. Save as: `certificate.p12`
+3. Enter a secure export password when prompted and remember it.
+
+---
+
+## 5. Local File Organization (Windows)
+
+Place your 4 downloaded files in a convenient folder on your Windows PC:
+- `certificate.p12`
+- `WiFiAuditor_AppStore.mobileprovision`
+- `WiFiAuditorWidget_AppStore.mobileprovision`
+- `AuthKey_XXXXXXXXXX.p8`
+
+---
+
+## 6. Encode Files to Base64 via Windows PowerShell
+
+Open PowerShell in that folder and run these commands to copy the base64 text directly to your clipboard:
 
 ```powershell
-# Certificate .p12
+# 1. Distribution Certificate (.p12)
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("certificate.p12")) | Set-Clipboard
-# Paste into secret: APPLE_CERTIFICATE_BASE64
+# (Paste into secret: APPLE_CERTIFICATE_BASE64)
 
-# API Key .p8
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("AuthKey_XXXXXXXXXX.p8")) | Set-Clipboard
-# Paste into secret: APP_STORE_CONNECT_PRIVATE_KEY_BASE64
-
-# App Provisioning Profile
+# 2. Main App Provisioning Profile
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("WiFiAuditor_AppStore.mobileprovision")) | Set-Clipboard
-# Paste into secret: APPLE_APP_PROFILE_BASE64
+# (Paste into secret: APPLE_APP_PROFILE_BASE64)
 
-# Widget Provisioning Profile
+# 3. Widget Provisioning Profile
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("WiFiAuditorWidget_AppStore.mobileprovision")) | Set-Clipboard
-# Paste into secret: APPLE_WIDGET_PROFILE_BASE64
+# (Paste into secret: APPLE_WIDGET_PROFILE_BASE64)
+
+# 4. App Store Connect API Key (.p8)
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("AuthKey_XXXXXXXXXX.p8")) | Set-Clipboard
+# (Paste into secret: APP_STORE_CONNECT_PRIVATE_KEY_BASE64)
 ```
 
 ---
 
-## 5. Add Secrets to Your GitHub Repository
+## 7. Add Secrets to GitHub
+
+In your GitHub repository:
+👉 **Settings > Secrets and variables > Actions > New repository secret**
+
+Add these exact secret names:
+
+| Secret Name | Source File / Value |
+| :--- | :--- |
+| `APPLE_CERTIFICATE_BASE64` | Output from `certificate.p12` base64 command |
+| `APPLE_CERTIFICATE_PASSWORD` | Password you set when exporting the `.p12` |
+| `APPLE_APP_PROFILE_BASE64` | Output from `WiFiAuditor_AppStore.mobileprovision` command |
+| `APPLE_WIDGET_PROFILE_BASE64` | Output from `WiFiAuditorWidget_AppStore.mobileprovision` command |
+| `APP_STORE_CONNECT_KEY_ID` | 10-character Key ID from Step 3 |
+| `APP_STORE_CONNECT_ISSUER_ID` | Issuer UUID from Step 3 |
+| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | Output from `AuthKey_XXXXXXXXXX.p8` command |
+| `KEYCHAIN_PASSWORD` *(optional)* | Custom temporary password (defaults to `temporary_ci_password`) |
+
+---
+
+## 8. Final Verification Checklist
+
+Before triggering the deployment run, verify:
+- [x] The certificate is an **Apple Distribution** `.p12`, not Development.
+- [x] `APPLE_CERTIFICATE_PASSWORD` matches the export password.
+- [x] App profile matches `com.wifiauditor.app`.
+- [x] Widget profile matches `com.wifiauditor.app.widget`.
+- [x] Key ID and Issuer ID match the active key in App Store Connect.
+- [x] `.p8` file was downloaded fresh from Apple.
+
+---
+
+## 9. Run the TestFlight Deployment
 
 In your repository on GitHub:
-1. Go to **Settings > Secrets and variables > Actions > New repository secret**.
-2. Add the following 6 secrets:
+1. Click the **Actions** tab.
+2. Select **"Deploy to Apple TestFlight"** from the left sidebar.
+3. Click **Run workflow**.
 
-| Secret Name | Description |
-| :--- | :--- |
-| `APP_STORE_CONNECT_KEY_ID` | Your 10-character Key ID from Step 2 |
-| `APP_STORE_CONNECT_ISSUER_ID` | Your UUID Issuer ID from Step 2 |
-| `APP_STORE_CONNECT_PRIVATE_KEY_BASE64` | Base64 content of `AuthKey_XXXXXXXXXX.p8` |
-| `APPLE_CERTIFICATE_BASE64` | Base64 content of your `.p12` certificate |
-| `APPLE_CERTIFICATE_PASSWORD` | Password you set when exporting the `.p12` |
-| `APPLE_APP_PROFILE_BASE64` | Base64 content of App Provisioning Profile |
-| `APPLE_WIDGET_PROFILE_BASE64` | Base64 content of Widget Provisioning Profile |
+The workflow will:
+1. Validate all secrets.
+2. Generate the Xcode 15-compatible project.
+3. Run the isolated unit test suite.
+4. Re-embed the Dynamic Island widget extension for production.
+5. Archive and sign the application with your Apple certificate.
+6. Export the `.ipa` and upload it directly to **Apple TestFlight**.
 
 ---
 
-## 6. Triggering a TestFlight Release
+## 10. Install on Your iPhone
 
-### Option A: One-Click Manual Deploy
-1. Go to your repository's **Actions** tab on GitHub.
-2. Select **"Deploy to Apple TestFlight"** in the left sidebar.
-3. Click **Run workflow**, enter optional release notes, and press the green button.
-
-### Option B: Git Tag Deploy
-Push a version tag from your Windows terminal:
-```powershell
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-GitHub Actions will automatically compile, sign, package, and upload the build. Within 5–10 minutes, you will receive an email from Apple and a notification in the **TestFlight app on your iPhone**!
+Within 5–10 minutes of workflow completion:
+1. Apple will process the build in App Store Connect.
+2. You will receive an email and notification on your iPhone.
+3. Open the **TestFlight** app and tap **Update / Install**!
