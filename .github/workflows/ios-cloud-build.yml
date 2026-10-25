@@ -21,12 +21,14 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_15.4.app || sudo xcode-select -s /Applications/Xcode_15.3.app || sudo xcode-select -s /Applications/Xcode.app
           xcodebuild -version
 
-      - name: Install XcodeGen
+      - name: Install compatible XcodeGen
         run: |
-          brew install xcodegen
+          brew install xcodegen@2.39.0 || brew install xcodegen
+          xcodegen --version
 
       - name: Generate Xcode Project (.xcodeproj)
         run: |
+          rm -rf WiFiAuditor.xcodeproj
           xcodegen generate
 
       - name: Resolve Simulator Device
