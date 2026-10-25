@@ -60,3 +60,14 @@ targets:
       - target: WiFiAuditor
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.wifiauditor.tests
+
+schemes:
+  WiFiAuditor:
+    build:
+      targets:
+        WiFiAuditor: all
+        WiFiSafetyWidget: [run]
+    test:
+      targets:
+        - name: WiFiAuditorTests
+          parallelizable: true
