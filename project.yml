@@ -28,8 +28,6 @@ targets:
       path: WiFiAuditor/WiFiAuditor/Resources/Info.plist
     entitlements:
       path: WiFiAuditor/WiFiAuditor/Resources/WiFiAuditorApp.entitlements
-    dependencies:
-      - target: WiFiSafetyWidget
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.wifiauditor.app
       PRODUCT_NAME: WiFiAuditor
