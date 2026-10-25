@@ -34,7 +34,6 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.wifiauditor.app
       PRODUCT_NAME: WiFiAuditor
       TARGETED_DEVICE_FAMILY: "1"
-      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   WiFiSafetyWidget:
     type: app-extension
