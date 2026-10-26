@@ -13,13 +13,18 @@ public enum RiskLevel: String, Codable, Hashable {
     case critical = "CRITICAL"
 }
 
+/// Evaluates network telemetry using an Adversarial vs Benign consensus model,
+/// synthesizing competing signals into an explicit risk score (0-100) and confidence rating.
 public struct ThreatScoringEngine {
     public struct Evaluation {
         public let riskLevel: RiskLevel
+        public let riskScore: Int
         public let confidence: AssessmentConfidence
         public let headline: String
         public let confidenceExplanation: String
         public let threats: [NetworkThreat]
+        public let benignEvidence: [String]
+        public let adversarialEvidence: [String]
     }
 
     public static func evaluate(
@@ -30,62 +35,95 @@ public struct ThreatScoringEngine {
         isUserTrusted: Bool
     ) -> Evaluation {
         var threats: [NetworkThreat] = []
+        var benignEvidence: [String] = []
+        var adversarialEvidence: [String] = []
+        var computedRisk = 0
         var confidenceSignals = 0
-        var totalSignals = 4
 
-        // 1. Process TLS Probe
+        // 1. Defender / Benign Assessment vs TLS Probe
         switch tls {
-        case .valid:
+        case .valid(let lat):
             confidenceSignals += 1
+            benignEvidence.append("TLS 1.3 cryptographic canary handshake succeeded (\(Int(lat))ms).")
         case .intercepted(let reason):
+            computedRisk += 50
+            adversarialEvidence.append("Active TLS certificate interception: \(reason)")
             threats.append(.tlsInterception(details: reason))
         case .timeoutOrUnreachable:
-            // Network dropped or actively suppressing outbound TLS
-            break
+            computedRisk += 10
+            adversarialEvidence.append("Outbound TLS canary was dropped or timed out.")
         }
 
-        // 2. Process DNS Probe
+        // 2. Defender / Benign Assessment vs DNS Integrity
         switch dns {
-        case .uncompromised:
+        case .uncompromised(let ip, let lat):
             confidenceSignals += 1
+            benignEvidence.append("DNS-over-HTTPS (DoH) matched authoritative resolver (\(ip), \(Int(lat))ms).")
         case .poisoned(let expected, let actual):
+            computedRisk += 45
+            adversarialEvidence.append("DNS query poisoned: local resolver returned '\(actual)' instead of '\(expected)'.")
             threats.append(.dnsPoisoning(expectedDoH: expected, localDNS: actual))
         case .dohBlockedOrFiltered:
-            // DoH blocked is typical before authenticating at captive portals
-            break
+            computedRisk += 15
+            adversarialEvidence.append("Encrypted DoH queries are actively filtered or blocked by local router.")
         case .unreachable:
-            break
+            computedRisk += 10
+            adversarialEvidence.append("DNS resolver was unreachable.")
         }
 
-        // 3. Process Captive State
+        // 3. Captive Portal Assessment
         switch captive {
         case .notDetected:
             confidenceSignals += 1
+            benignEvidence.append("No captive network interception detected.")
         case .portalDetected(let url, let isEncrypted):
             if !isEncrypted {
+                computedRisk += 30
+                adversarialEvidence.append("Captive portal login page uses unencrypted plaintext HTTP.")
                 threats.append(.unencryptedCaptivePortal(url: url.absoluteString))
+            } else {
+                computedRisk += 15
+                benignEvidence.append("Captive portal enforces HTTPS encryption (\(url.host ?? "gateway")).")
             }
             if let host = url.host, host.contains(".tk") || host.contains(".xyz") {
+                computedRisk += 35
+                adversarialEvidence.append("Captive portal host '\(host)' uses a high-risk disposable TLD.")
                 threats.append(.rogueCaptivePortal(url: url.absoluteString, reason: "Host domain uses a high-risk disposable TLD"))
             }
         case .unreachable:
             break
         }
 
-        // 4. Process Historical Discrepancy
+        // 4. Historical Access Point Discrepancy
         switch discrepancy {
         case .none:
             confidenceSignals += 1
+            benignEvidence.append("Access point BSSID and gateway subnet match historical observations.")
         case .newNetworkFirstSeen:
-            // First time seeing this network - confidence is naturally limited
-            break
+            benignEvidence.append("First time encountering this network profile.")
         case .gatewaySubnetShift(let expected, let actual):
+            computedRisk += 20
+            adversarialEvidence.append("Gateway subnet shifted from \(expected.joined(separator: ", ")) to \(actual).")
             threats.append(.suspiciousGateway(ip: "Router gateway changed from \(expected.joined(separator: ", ")) to \(actual)"))
         case .bssidMismatch(let expected, let actual):
+            computedRisk += 40
+            adversarialEvidence.append("BSSID hardware mismatch (expected: \(expected), actual: \(actual)). Potential Evil Twin.")
             threats.append(.possibleEvilTwin(expected: expected.joined(separator: ", "), actual: actual))
         }
 
-        // Compute Confidence
+        // If user explicitly marked network as trusted (e.g. Home), soften minor heuristics
+        if isUserTrusted && computedRisk < 30 {
+            computedRisk = 0
+            benignEvidence.append("User marked this network as trusted home/office profile.")
+        }
+
+        var finalScore = min(100, max(0, computedRisk))
+        let hasCriticalThreat = threats.contains(where: { $0.severity == .critical })
+        if hasCriticalThreat {
+            finalScore = max(finalScore, 85)
+        }
+
+        // Confidence calculation
         let confidence: AssessmentConfidence
         let explanation: String
         if confidenceSignals >= 3 {
@@ -99,21 +137,17 @@ public struct ThreatScoringEngine {
             explanation = "Network blocked outbound verification probes or is awaiting captive portal authentication."
         }
 
-        // Compute Risk Level
-        let hasCritical = threats.contains(where: { $0.severity == .critical })
-        let hasHigh = threats.contains(where: { $0.severity == .high })
-        let hasMedium = threats.contains(where: { $0.severity == .medium })
-
+        // Risk Level mapping from synthesized score
         let riskLevel: RiskLevel
         let headline: String
 
-        if hasCritical {
+        if finalScore >= 75 || hasCriticalThreat {
             riskLevel = .critical
             headline = "Critical Threat Detected"
-        } else if hasHigh {
+        } else if finalScore >= 40 {
             riskLevel = .elevated
             headline = "Suspicious Network Activity"
-        } else if hasMedium || caseCaptiveDetected(captive) {
+        } else if finalScore >= 15 || caseCaptiveDetected(captive) {
             riskLevel = .moderate
             headline = "Captive Portal / Incomplete Auth"
         } else {
@@ -123,10 +157,13 @@ public struct ThreatScoringEngine {
 
         return Evaluation(
             riskLevel: riskLevel,
+            riskScore: finalScore,
             confidence: confidence,
             headline: headline,
             confidenceExplanation: explanation,
-            threats: threats
+            threats: threats,
+            benignEvidence: benignEvidence,
+            adversarialEvidence: adversarialEvidence
         )
     }
 

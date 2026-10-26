@@ -64,13 +64,14 @@ public enum NetworkThreat: Identifiable, Codable, Hashable {
     }
 }
 
-/// The aggregated result of a Wi-Fi security audit with confidence metrics
+/// The aggregated result of a Wi-Fi security audit with confidence and multi-agent risk scoring
 public struct SecurityAuditResult: Identifiable, Codable {
     public let id: UUID
     public let ssid: String
     public let timestamp: Date
     public let isSecure: Bool
     public let riskLevel: RiskLevel
+    public let riskScore: Int
     public let confidence: AssessmentConfidence
     public let confidenceExplanation: String
     public let threats: [NetworkThreat]
@@ -84,6 +85,7 @@ public struct SecurityAuditResult: Identifiable, Codable {
         timestamp: Date = Date(),
         isSecure: Bool,
         riskLevel: RiskLevel = .nominal,
+        riskScore: Int = 0,
         confidence: AssessmentConfidence = .medium,
         confidenceExplanation: String = "",
         threats: [NetworkThreat] = [],
@@ -96,6 +98,7 @@ public struct SecurityAuditResult: Identifiable, Codable {
         self.timestamp = timestamp
         self.isSecure = isSecure
         self.riskLevel = riskLevel
+        self.riskScore = riskScore
         self.confidence = confidence
         self.confidenceExplanation = confidenceExplanation
         self.threats = threats

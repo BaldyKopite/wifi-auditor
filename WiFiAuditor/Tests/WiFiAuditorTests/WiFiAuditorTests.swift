@@ -125,4 +125,19 @@ final class WiFiAuditorTests: XCTestCase {
         XCTAssertEqual(medium.severity, .medium)
         XCTAssertEqual(low.severity, .low)
     }
+
+    func testConsensusRiskScoreSynthesis() async {
+        mockProbe.captiveStateToReturn = .notDetected
+        mockProbe.tlsStateToReturn = .valid(latencyMs: 35.0)
+        mockProbe.dnsStateToReturn = .uncompromised(resolvedIP: "1.1.1.1", latencyMs: 20.0)
+
+        let cleanResult = await auditor.audit(ssid: "CleanWiFi")
+        XCTAssertEqual(cleanResult.riskScore, 0)
+        XCTAssertEqual(cleanResult.riskLevel, .nominal)
+
+        mockProbe.tlsStateToReturn = .intercepted(reason: "MITM Proxy")
+        let compromisedResult = await auditor.audit(ssid: "RogueWiFi")
+        XCTAssertGreaterThanOrEqual(compromisedResult.riskScore, 75)
+        XCTAssertEqual(compromisedResult.riskLevel, .critical)
+    }
 }

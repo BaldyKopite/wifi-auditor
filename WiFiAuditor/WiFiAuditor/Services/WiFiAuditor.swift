@@ -65,6 +65,7 @@ public final class WiFiAuditor {
             timestamp: Date(),
             isSecure: eval.riskLevel == .nominal,
             riskLevel: eval.riskLevel,
+            riskScore: eval.riskScore,
             confidence: eval.confidence,
             confidenceExplanation: eval.confidenceExplanation,
             threats: eval.threats,

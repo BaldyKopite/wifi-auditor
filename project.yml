@@ -24,6 +24,7 @@ targets:
       - path: WiFiAuditor/WiFiAuditor/Models
       - path: WiFiAuditor/WiFiAuditor/Services
       - path: WiFiAuditor/WiFiAuditor/Views
+      - path: WiFiAuditor/WiFiAuditor/Resources/PrivacyInfo.xcprivacy
     info:
       path: WiFiAuditor/WiFiAuditor/Resources/Info.plist
     entitlements:
