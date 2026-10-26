@@ -27,7 +27,7 @@ public struct DashboardView: View {
 
                             if let bssid = networkObserver.currentBSSID {
                                 Text("• \(bssid)")
-                                    .font(.caption2)
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -104,13 +104,13 @@ public struct DashboardView: View {
                         Button(action: {
                             networkObserver.reAuditCurrentNetwork()
                         }) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 8) {
                                 Image(systemName: "arrow.triangle.2.circlepath")
                                 Text(networkObserver.isAuditing ? "Auditing..." : "Re-Scan")
                                     .fontWeight(.semibold)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
+                            .frame(minHeight: 44)
                             .background(Color.accentColor)
                             .foregroundColor(.white)
                             .cornerRadius(10)
@@ -127,7 +127,7 @@ public struct DashboardView: View {
                                     .fontWeight(.semibold)
                             }
                             .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
+                            .frame(minHeight: 44)
                             .background(isCurrentNetworkTrusted ? Color.yellow.opacity(0.2) : Color(.secondarySystemBackground))
                             .foregroundColor(isCurrentNetworkTrusted ? .orange : .primary)
                             .cornerRadius(10)
@@ -311,7 +311,7 @@ private struct MetricPill: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 Text(value)
-                    .font(.footnote.bold())
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
             }
             Spacer()
         }
