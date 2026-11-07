@@ -1,16 +1,25 @@
-# Superpowers Agent Guidelines — WiFi Auditor
+# AGENTS.md — Steering Guidelines & Superpowers Protocol
+
+Instructions, architectural invariants, and non-negotiable constraints for any AI assistant modifying this repository.
+
+---
+
+## 1. Superpowers Engineering Protocol
 
 This repository follows the Superpowers engineering methodology:
 
-## 1. Initial Step: Skill Invocation & Methodology (`using-superpowers`)
-- **Always invoke skills before action:** Check and activate the appropriate Superpowers skill before executing tasks, writing code, or proposing solutions.
+### A. Initial Step: Skill Invocation & Methodology (`using-superpowers`)
+- **Always invoke skills before action:** Check and activate the appropriate Superpowers skill before executing tasks, writing code, or proposing solutions:
   - **New Features / Architecture:** Use `brainstorming` before entering planning or implementation.
+  - **Planning:** Use `writing-plans` once specifications and design are aligned.
   - **Debugging / Issues:** Use `systematic-debugging` to trace and reproduce root causes before modifying files.
   - **Implementation:** Use `test-driven-development` (write failing tests before implementation code).
   - **Complex Tasks:** Use `writing-plans` and `subagent-driven-development`.
+  - **Code Review:** Use `requesting-code-review` and `receiving-code-review`.
+  - **Branch Integration:** Use `finishing-a-development-branch`.
 - **Task Tracking:** For multi-step tasks, create and maintain an explicit task checklist, updating progress systematically.
 
-## 2. Final Step: Verification Before Completion (`verification-before-completion`)
+### B. Final Step: Verification Before Completion (`verification-before-completion`)
 - **Strict Evidence Requirement:** NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE.
 - Before claiming work is finished, resolved, or passing:
   1. Determine the exact command or test that proves the change works.
@@ -20,11 +29,7 @@ This repository follows the Superpowers engineering methodology:
 
 ---
 
-# Repository Invariants & Architectural Constraints
-
-Instructions, architectural invariants, and non-negotiable constraints for any AI assistant (Antigravity, Cursor, Claude Code, Copilot, Codex) modifying this repository.
-
-## 1. Architectural Invariants (Non-Negotiable)
+## 2. Architectural Invariants (Non-Negotiable)
 
 1. **Zero-Cloud Traffic Routing:**
    - This app NEVER tunnels user web or app traffic through a remote VPN server.
@@ -42,7 +47,7 @@ Instructions, architectural invariants, and non-negotiable constraints for any A
 
 ---
 
-## 2. Design System Adherence (`DESIGN.md` & `PRODUCT.md`)
+## 3. Design System Adherence (`DESIGN.md` & `PRODUCT.md`)
 
 - **Color:** Always use the semantic palette in `DESIGN.md`. Never use pure `#000000` or `#808080`; always use tinted slate/navy backgrounds.
 - **Accessibility:** All interactive buttons and touch targets must maintain a minimum frame height of **44pt** (`.frame(minHeight: 44)`).
@@ -51,14 +56,14 @@ Instructions, architectural invariants, and non-negotiable constraints for any A
 
 ---
 
-## 3. Dependency Injection & Testing
+## 4. Dependency Injection & Testing
 
 - All network probing logic in `WiFiAuditor.swift` must accept an injected `NetworkProbing` protocol client.
 - Never write tests that depend on a live Internet connection. All unit tests in `Tests/WiFiAuditorTests/` must use `MockNetworkProbeClient` to ensure 100% deterministic, offline execution.
 
 ---
 
-## 4. Security & Compliance Checklist (AgentShield)
+## 5. Security & Compliance Checklist (AgentShield)
 
 Before staging any commit:
 - [ ] No `.p12`, `.p8`, `.mobileprovision`, or plaintext secrets are committed to Git.
